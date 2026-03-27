@@ -1,0 +1,8 @@
+*.pyc
+__pycache__/
+models/*.pkl
+outputs/*.png
+.DS_Store
+*.egg-info/
+.venv/
+*.log

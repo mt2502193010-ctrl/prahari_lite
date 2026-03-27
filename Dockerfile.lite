@@ -1,0 +1,38 @@
+# PRAHARI-Lite Dockerfile
+# Lightweight IDS with DT + Autoencoder
+# Target: Pynq-Z2 (host x86 for server, HLS for FPGA)
+# Completely isolated from PRAHARI v7 at ../docker_env/
+
+FROM python:3.11-slim
+
+LABEL maintainer="PRAHARI-Lite"
+LABEL description="FPGA-native hybrid IDS: DecisionTree + Autoencoder"
+
+WORKDIR /app
+
+# System dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python dependencies
+COPY requirements_lite.txt .
+RUN pip install --no-cache-dir -r requirements_lite.txt
+
+# Copy application
+COPY runtime/       runtime/
+COPY dashboard/     dashboard/
+COPY models/        models/
+COPY outputs/       outputs/
+COPY docs/          docs/
+COPY training/      training/
+COPY experiments/   experiments/
+
+# Create output dirs
+RUN mkdir -p /app/outputs /app/docs /app/models
+
+# Expose ports
+EXPOSE 5001 5002
+
+# Default command: IDS server
+CMD ["python", "runtime/ids_lite_server.py"]

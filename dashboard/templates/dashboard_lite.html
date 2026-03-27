@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRAHARI-Lite — Full FPGA Hybrid IDS</title>
+<link rel="stylesheet" href="/static/lite.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- Section A: Status bar -->
+<header class="status-bar">
+  <div class="brand">
+    <span class="brand-name">PRAHARI-Lite</span>
+    <span class="brand-sub">Decision Tree + Autoencoder | Pynq-Z2 Native</span>
+  </div>
+  <div class="status-items">
+    <span class="pill green" id="status-pill">● ONLINE</span>
+    <span class="status-item" id="model-info">dt_lite_v1 | ae_lite_v1</span>
+    <span class="status-item">Port: 5001</span>
+    <span class="status-item">Uptime: <span id="uptime">—</span></span>
+    <a href="http://localhost:5000" class="switch-link" target="_blank">Switch to PRAHARI ↗</a>
+  </div>
+</header>
+
+<!-- Section B: Metrics -->
+<section class="metrics-row">
+  <div class="card">
+    <div class="card-label">Total Flows</div>
+    <div class="card-value" id="total-flows">0</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Attacks Detected</div>
+    <div class="card-value" id="attacks-detected">0</div>
+  </div>
+  <div class="card card-alert">
+    <div class="card-label">Zero-Day Alerts</div>
+    <div class="card-value" id="zero-day-alerts">0</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Attack Rate</div>
+    <div class="card-value" id="fpr-value">—</div>
+  </div>
+</section>
+
+<!-- Section C + D: Charts row -->
+<div class="charts-row">
+  <!-- Section C: Routing Breakdown Doughnut -->
+  <div class="chart-card">
+    <h3>Routing Breakdown</h3>
+    <canvas id="routing-chart" height="220"></canvas>
+  </div>
+
+  <!-- Section D: Live Traffic Chart -->
+  <div class="chart-card">
+    <h3>Live Traffic — Attack Class Distribution</h3>
+    <canvas id="traffic-chart" height="220"></canvas>
+  </div>
+</div>
+
+<!-- Section E: Model Comparison Table (static) -->
+<section class="section">
+  <h2>Model Comparison: PRAHARI-Lite vs PRAHARI v7</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th>PRAHARI v7 (GBM+IF)</th>
+        <th>PRAHARI-Lite (DT+AE)</th>
+        <th>Delta</th>
+        <th>Direction</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Combined F1</td>
+        <td>0.8550</td>
+        <td id="cmp-f1">—</td>
+        <td id="cmp-f1-delta">—</td>
+        <td>higher=better</td>
+      </tr>
+      <tr>
+        <td>FPR</td>
+        <td>0.0042</td>
+        <td id="cmp-fpr">—</td>
+        <td id="cmp-fpr-delta">—</td>
+        <td>lower=better</td>
+      </tr>
+      <tr>
+        <td>APT Recall</td>
+        <td>0.8810</td>
+        <td id="cmp-apt">—</td>
+        <td id="cmp-apt-delta">—</td>
+        <td>higher=better</td>
+      </tr>
+      <tr>
+        <td>RECON Recall</td>
+        <td>0.8400</td>
+        <td id="cmp-recon">—</td>
+        <td id="cmp-recon-delta">—</td>
+        <td>higher=better</td>
+      </tr>
+      <tr>
+        <td>TS Recall</td>
+        <td>0.8170</td>
+        <td id="cmp-ts">—</td>
+        <td id="cmp-ts-delta">—</td>
+        <td>higher=better</td>
+      </tr>
+      <tr>
+        <td>NRM Recall</td>
+        <td>0.9360</td>
+        <td id="cmp-nrm">—</td>
+        <td id="cmp-nrm-delta">—</td>
+        <td>higher=better</td>
+      </tr>
+      <tr>
+        <td>BRAM (KB)</td>
+        <td>640</td>
+        <td>&lt;25</td>
+        <td>-615</td>
+        <td>lower=better ✓</td>
+      </tr>
+      <tr>
+        <td>FPGA Native</td>
+        <td>No (Docker only)</td>
+        <td>Yes (Pynq-Z2)</td>
+        <td>—</td>
+        <td>yes=better ✓</td>
+      </tr>
+      <tr>
+        <td>Zero-Day Detection</td>
+        <td>Limited (IsolationForest)</td>
+        <td>Leaf Purity Gate + AE</td>
+        <td>—</td>
+        <td>novel contribution ✓</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- Section F: Recent Alerts Feed -->
+<section class="section">
+  <h2>Recent Alerts</h2>
+  <table id="alerts-table">
+    <thead>
+      <tr>
+        <th>Timestamp</th>
+        <th>Label</th>
+        <th>DT Label</th>
+        <th>Routing</th>
+        <th>DT Purity</th>
+        <th>AE Error</th>
+      </tr>
+    </thead>
+    <tbody id="alerts-body">
+      <tr><td colspan="6" style="text-align:center;color:#94a3b8">No alerts yet</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- Section G: Leaf Purity Placeholder Chart -->
+<section class="section">
+  <h2>Leaf Purity Distribution (Static Preview)</h2>
+  <div class="chart-card" style="max-width:800px">
+    <h3>Purity distribution by class — run leaf_purity_analysis.py to generate real charts</h3>
+    <canvas id="purity-chart" height="200"></canvas>
+  </div>
+</section>
+
+<!-- Section H: LOCO Results Table -->
+<section class="section">
+  <h2>LOCO Experiment Results</h2>
+  <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:12px">
+    Leave-One-Class-Out: AE (trained on NORMAL only) provides zero-day safety net when DT has never seen a class.
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>Excluded Class</th>
+        <th>Test Samples</th>
+        <th>DT Recall (exact)</th>
+        <th>DT (as attack)</th>
+        <th>AE Recall</th>
+        <th>Fusion Recall</th>
+      </tr>
+    </thead>
+    <tbody id="loco-body">
+      <tr><td>APT</td><td>—</td><td>~0.0</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>RECON</td><td>—</td><td>~0.0</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>TRAFFIC_SPIKE</td><td>—</td><td>~0.0</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>NR_MALWARE</td><td>—</td><td>~0.0</td><td>—</td><td>—</td><td>—</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<script>
+'use strict';
+
+// ── Routing doughnut chart ───────────────────────────────────────────────────
+const routingCtx = document.getElementById('routing-chart').getContext('2d');
+const routingChart = new Chart(routingCtx, {
+  type: 'doughnut',
+  data: {
+    labels: ['DT Confident', 'AE Flagged (Zero-Day)', 'Low Conf Normal'],
+    datasets: [{
+      data: [1, 0, 0],
+      backgroundColor: ['#22c55e', '#ef4444', '#F59E0B'],
+      borderColor: '#1e293b',
+      borderWidth: 2,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { color: '#94a3b8', font: { size: 11 } }
+      }
+    }
+  }
+});
+
+// ── Traffic bar chart ────────────────────────────────────────────────────────
+const trafficCtx = document.getElementById('traffic-chart').getContext('2d');
+const trafficChart = new Chart(trafficCtx, {
+  type: 'bar',
+  data: {
+    labels: ['NORMAL', 'APT', 'RECON', 'TRAFFIC_SPIKE', 'NR_MALWARE', 'ZERO_DAY'],
+    datasets: [{
+      label: 'Flow Count',
+      data: [0, 0, 0, 0, 0, 0],
+      backgroundColor: [
+        '#22c55e', '#ef4444', '#f97316', '#3b82f6', '#a78bfa', '#F59E0B'
+      ],
+      borderColor: '#1e293b',
+      borderWidth: 1,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false }
+    },
+    scales: {
+      x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+      y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' }, beginAtZero: true }
+    }
+  }
+});
+
+// ── Leaf purity placeholder chart ────────────────────────────────────────────
+const purityCtx = document.getElementById('purity-chart').getContext('2d');
+const purityChart = new Chart(purityCtx, {
+  type: 'bar',
+  data: {
+    labels: ['0.5-0.6', '0.6-0.7', '0.7-0.8', '0.8-0.9', '0.9-1.0'],
+    datasets: [{
+      label: 'Leaf Count (placeholder)',
+      data: [5, 10, 20, 40, 80],
+      backgroundColor: '#F59E0B',
+      borderColor: '#1e293b',
+      borderWidth: 1,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { labels: { color: '#94a3b8' } }
+    },
+    scales: {
+      x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+      y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' }, beginAtZero: true }
+    }
+  }
+});
+
+// ── V7 reference values for comparison table ─────────────────────────────────
+const V7_REF = {
+  f1: 0.8550, fpr: 0.0042, apt: 0.8810,
+  recon: 0.8400, ts: 0.8170, nrm: 0.9360,
+};
+
+function updateComparisonTable(stats) {
+  // These would come from validation results if available via stats
+  // For now just show placeholders — the real values come from validate_lite.py
+}
+
+// ── Fetch and update stats ───────────────────────────────────────────────────
+function updateStats() {
+  fetch('/api/stats')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      // Metrics
+      document.getElementById('total-flows').textContent = data.total_flows || 0;
+      document.getElementById('attacks-detected').textContent = data.attacks_detected || 0;
+      document.getElementById('zero-day-alerts').textContent = data.zero_day_alerts || 0;
+      document.getElementById('fpr-value').textContent = (data.attack_rate_pct || 0).toFixed(1) + '%';
+      document.getElementById('uptime').textContent = data.uptime_human || '—';
+
+      // Status pill
+      var pill = document.getElementById('status-pill');
+      if (data.error) {
+        pill.textContent = '● DEGRADED';
+        pill.className = 'pill red';
+      } else {
+        pill.textContent = '● ONLINE';
+        pill.className = 'pill green';
+      }
+
+      // Routing chart
+      var rc = data.routing_counts || {};
+      routingChart.data.datasets[0].data = [
+        rc.DT_CONFIDENT || 0,
+        rc.AE_FLAGGED || 0,
+        rc.DT_LOW_CONF_AE_NORMAL || 0,
+      ];
+      routingChart.update();
+
+      // Traffic chart
+      var cc = data.class_counts || {};
+      trafficChart.data.datasets[0].data = [
+        cc.NORMAL || 0,
+        cc.APT || 0,
+        cc.RECON || 0,
+        cc.TRAFFIC_SPIKE || 0,
+        cc.NR_MALWARE || 0,
+        cc.ZERO_DAY || 0,
+      ];
+      trafficChart.update();
+    })
+    .catch(function(e) {
+      document.getElementById('status-pill').textContent = '● OFFLINE';
+      document.getElementById('status-pill').className = 'pill red';
+    });
+}
+
+// ── Fetch and update alerts ──────────────────────────────────────────────────
+function updateAlerts() {
+  fetch('/api/recent_alerts?n=20')
+    .then(function(r) { return r.json(); })
+    .then(function(alerts) {
+      var tbody = document.getElementById('alerts-body');
+      while (tbody.firstChild) { tbody.removeChild(tbody.firstChild); }
+
+      if (!Array.isArray(alerts) || alerts.length === 0) {
+        var noRow = document.createElement('tr');
+        var noCell = document.createElement('td');
+        noCell.setAttribute('colspan', '6');
+        noCell.style.textAlign = 'center';
+        noCell.style.color = '#94a3b8';
+        noCell.textContent = 'No alerts yet';
+        noRow.appendChild(noCell);
+        tbody.appendChild(noRow);
+        return;
+      }
+
+      alerts.forEach(function(alert) {
+        var tr = document.createElement('tr');
+
+        var tdTs = document.createElement('td');
+        tdTs.textContent = (alert.timestamp || '').replace('T', ' ').substring(0, 19);
+        tr.appendChild(tdTs);
+
+        var tdLabel = document.createElement('td');
+        tdLabel.textContent = alert.final_label || '—';
+        if (alert.final_label === 'ZERO_DAY') tdLabel.style.color = '#F59E0B';
+        else if (alert.final_label !== 'NORMAL') tdLabel.style.color = '#ef4444';
+        else tdLabel.style.color = '#22c55e';
+        tr.appendChild(tdLabel);
+
+        var tdDt = document.createElement('td');
+        tdDt.textContent = alert.dt_label || '—';
+        tr.appendChild(tdDt);
+
+        var tdRouting = document.createElement('td');
+        tdRouting.textContent = alert.routing || '—';
+        if (alert.routing === 'AE_FLAGGED') tdRouting.style.color = '#ef4444';
+        else if (alert.routing === 'DT_CONFIDENT') tdRouting.style.color = '#22c55e';
+        else tdRouting.style.color = '#F59E0B';
+        tr.appendChild(tdRouting);
+
+        var tdPurity = document.createElement('td');
+        tdPurity.textContent = alert.dt_purity != null ? alert.dt_purity.toFixed(4) : '—';
+        tr.appendChild(tdPurity);
+
+        var tdAe = document.createElement('td');
+        tdAe.textContent = alert.ae_error != null ? alert.ae_error.toFixed(6) : '—';
+        tr.appendChild(tdAe);
+
+        tbody.appendChild(tr);
+      });
+    })
+    .catch(function() {});
+}
+
+// ── Load LOCO results ────────────────────────────────────────────────────────
+function loadLocoResults() {
+  fetch('/api/loco_results')
+    .then(function(r) { return r.json(); })
+    .then(function(results) {
+      if (!Array.isArray(results) || results.length === 0) return;
+
+      var tbody = document.getElementById('loco-body');
+      while (tbody.firstChild) { tbody.removeChild(tbody.firstChild); }
+
+      results.forEach(function(row) {
+        var tr = document.createElement('tr');
+
+        var fields = [
+          row.excluded_class,
+          row.n_test_samples,
+          row.dt_exact_recall,
+          row.dt_as_attack_recall,
+          row.ae_recall,
+          row.fusion_recall,
+        ];
+
+        fields.forEach(function(val) {
+          var td = document.createElement('td');
+          td.textContent = val != null ? val : '—';
+          tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+      });
+    })
+    .catch(function() {});
+}
+
+// ── Polling ──────────────────────────────────────────────────────────────────
+updateStats();
+updateAlerts();
+loadLocoResults();
+
+setInterval(updateStats,  3000);
+setInterval(updateAlerts, 3000);
+setInterval(function() {
+  updateStats();
+  trafficChart.update();
+}, 5000);
+
+// Load LOCO once (static data)
+setTimeout(loadLocoResults, 2000);
+
+</script>
+</body>
+</html>
