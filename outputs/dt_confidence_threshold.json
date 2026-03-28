@@ -1,12 +1,12 @@
 {
-  "confidence_threshold": 0.997672129906259,
-  "n_leaves": 81,
-  "mean_leaf_purity": 0.8849129893536126,
-  "min_leaf_purity": 0.4,
+  "confidence_threshold": 0.9618371356171772,
+  "n_leaves": 767,
+  "mean_leaf_purity": 0.799641858583092,
+  "min_leaf_purity": 0.2723012332551616,
   "max_leaf_purity": 1.0,
   "best_depth": 15,
-  "f1_test": 0.9839175083189182,
-  "fpr_test": 0.05,
-  "bram_kb": 1.18408203125,
-  "timestamp": "2026-03-28T11:20:42.473766"
+  "f1_test": 0.7888164409344215,
+  "fpr_test": 0.04748696110796398,
+  "bram_kb": 11.23291015625,
+  "timestamp": "2026-03-28T11:42:35.350960"
 }

@@ -1,7 +1,7 @@
 {
-  "threshold": 1.5642576217651367,
+  "threshold": 2.408013343811035,
   "percentile": 95,
   "n_normal_val": 2000,
-  "mean_normal_error": 0.6884738206863403,
-  "std_normal_error": 0.45255225896835327
+  "mean_normal_error": 1.3429968357086182,
+  "std_normal_error": 0.6210362911224365
 }

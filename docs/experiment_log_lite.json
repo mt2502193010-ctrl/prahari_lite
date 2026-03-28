@@ -281,5 +281,288 @@
         "is_model": true
       }
     ]
+  },
+  {
+    "meta": {
+      "timestamp": "2026-03-28T06:12:31+00:00",
+      "script_name": "train_decision_tree",
+      "version": "v1",
+      "system": "prahari_lite",
+      "git_hash": "1f60cd8",
+      "python": "3.14.3",
+      "os": "macOS-26.4-arm64-arm-64bit-Mach-O",
+      "hostname": "Deepaks-MacBook-Air.local",
+      "env": "venv:3.14"
+    },
+    "sections": [
+      {
+        "name": "Setup",
+        "entries": [
+          {
+            "type": "decision",
+            "what": "Use prahari_lite isolated training",
+            "why": "Completely separate from v7"
+          }
+        ]
+      },
+      {
+        "name": "Data",
+        "entries": [
+          {
+            "type": "param",
+            "key": "data_source",
+            "value": "real"
+          },
+          {
+            "type": "param",
+            "key": "total_rows",
+            "value": 350000
+          },
+          {
+            "type": "param",
+            "key": "class_distribution",
+            "value": {
+              "NORMAL": 255968,
+              "APT": 34579,
+              "TRAFFIC_SPIKE": 31883,
+              "NR_MALWARE": 17877,
+              "RECON": 9693
+            }
+          }
+        ]
+      },
+      {
+        "name": "Training",
+        "entries": [
+          {
+            "type": "param",
+            "key": "depth_6_f1",
+            "value": 0.6693
+          },
+          {
+            "type": "param",
+            "key": "depth_6_bram_kb",
+            "value": 0.61
+          },
+          {
+            "type": "param",
+            "key": "depth_8_f1",
+            "value": 0.7425
+          },
+          {
+            "type": "param",
+            "key": "depth_8_bram_kb",
+            "value": 1.3
+          },
+          {
+            "type": "param",
+            "key": "depth_10_f1",
+            "value": 0.7654
+          },
+          {
+            "type": "param",
+            "key": "depth_10_bram_kb",
+            "value": 2.84
+          },
+          {
+            "type": "param",
+            "key": "depth_12_f1",
+            "value": 0.7791
+          },
+          {
+            "type": "param",
+            "key": "depth_12_bram_kb",
+            "value": 5.2
+          },
+          {
+            "type": "param",
+            "key": "depth_15_f1",
+            "value": 0.7848
+          },
+          {
+            "type": "param",
+            "key": "depth_15_bram_kb",
+            "value": 11.23
+          }
+        ]
+      },
+      {
+        "name": "Results",
+        "entries": [
+          {
+            "type": "param",
+            "key": "best_depth",
+            "value": 15
+          },
+          {
+            "type": "param",
+            "key": "f1_test",
+            "value": 0.7888
+          },
+          {
+            "type": "param",
+            "key": "fpr_test",
+            "value": 0.0475
+          },
+          {
+            "type": "param",
+            "key": "bram_kb",
+            "value": 11.23
+          },
+          {
+            "type": "param",
+            "key": "confidence_threshold",
+            "value": 0.9618
+          },
+          {
+            "type": "param",
+            "key": "n_leaves",
+            "value": 767
+          },
+          {
+            "type": "check",
+            "name": "F1 >= 0.80",
+            "passed": false,
+            "value": 0.7888164409344215,
+            "note": ""
+          },
+          {
+            "type": "check",
+            "name": "BRAM < 25KB",
+            "passed": true,
+            "value": 11.23291015625,
+            "note": ""
+          },
+          {
+            "type": "artifact",
+            "path": "models/dt_lite_v1.pkl",
+            "sha256": "dabaabd3b615d532bef4fff0a737d150d66bc498ea49b361a7b41eebd534f755",
+            "notes": "DT depth=15"
+          },
+          {
+            "type": "artifact",
+            "path": "outputs/dt_depth_comparison.csv",
+            "sha256": "2170e7a5ff0fa3f7463ac1f730da2632932bb09cce3c06b6d17b753e2fe28594",
+            "notes": ""
+          },
+          {
+            "type": "artifact",
+            "path": "outputs/leaf_purity_distribution.csv",
+            "sha256": "78723178211a0c0c030031002affe926beb89d7311523b4fef3d583b80b453f2",
+            "notes": ""
+          },
+          {
+            "type": "artifact",
+            "path": "outputs/dt_confidence_threshold.json",
+            "sha256": "71cfe4278d140b649b103731afe9a773f285cff21bc26aa6e597744900d1a1d1",
+            "notes": ""
+          }
+        ]
+      }
+    ],
+    "artifacts": [
+      {
+        "path": "/Users/deepakkumaryadav/ids_project/prahari_lite/models/dt_lite_v1.pkl",
+        "relpath": "models/dt_lite_v1.pkl",
+        "sha256": "dabaabd3b615d532bef4fff0a737d150d66bc498ea49b361a7b41eebd534f755",
+        "size_kb": 157.0,
+        "notes": "DT depth=15",
+        "is_model": true
+      },
+      {
+        "path": "/Users/deepakkumaryadav/ids_project/prahari_lite/outputs/dt_depth_comparison.csv",
+        "relpath": "outputs/dt_depth_comparison.csv",
+        "sha256": "2170e7a5ff0fa3f7463ac1f730da2632932bb09cce3c06b6d17b753e2fe28594",
+        "size_kb": 0.4,
+        "notes": "",
+        "is_model": false
+      },
+      {
+        "path": "/Users/deepakkumaryadav/ids_project/prahari_lite/outputs/leaf_purity_distribution.csv",
+        "relpath": "outputs/leaf_purity_distribution.csv",
+        "sha256": "78723178211a0c0c030031002affe926beb89d7311523b4fef3d583b80b453f2",
+        "size_kb": 22.7,
+        "notes": "",
+        "is_model": false
+      },
+      {
+        "path": "/Users/deepakkumaryadav/ids_project/prahari_lite/outputs/dt_confidence_threshold.json",
+        "relpath": "outputs/dt_confidence_threshold.json",
+        "sha256": "71cfe4278d140b649b103731afe9a773f285cff21bc26aa6e597744900d1a1d1",
+        "size_kb": 0.3,
+        "notes": "",
+        "is_model": false
+      }
+    ]
+  },
+  {
+    "meta": {
+      "timestamp": "2026-03-28T06:12:45+00:00",
+      "script_name": "train_autoencoder",
+      "version": "v1",
+      "system": "prahari_lite",
+      "git_hash": "1f60cd8",
+      "python": "3.14.3",
+      "os": "macOS-26.4-arm64-arm-64bit-Mach-O",
+      "hostname": "Deepaks-MacBook-Air.local",
+      "env": "venv:3.14"
+    },
+    "sections": [
+      {
+        "name": "Setup",
+        "entries": [
+          {
+            "type": "decision",
+            "what": "Train AE on NORMAL only",
+            "why": "Anomaly detection philosophy"
+          }
+        ]
+      },
+      {
+        "name": "Results",
+        "entries": [
+          {
+            "type": "param",
+            "key": "threshold",
+            "value": 2.408013
+          },
+          {
+            "type": "param",
+            "key": "best_val_loss",
+            "value": 1.342997
+          },
+          {
+            "type": "artifact",
+            "path": "models/ae_lite_v1.pkl",
+            "sha256": "ac8cddf71fa9f366e918670e38090a589aab59cdda986a9d65e3f3745c6153c3",
+            "notes": "AE 15-8-4-8-15 fp32"
+          },
+          {
+            "type": "artifact",
+            "path": "models/ae_lite_v1_quantised.pkl",
+            "sha256": "799074b8ddee00d8c0141121476f927a4bde6465c4ae4cc08cca7e4cfedf6a60",
+            "notes": "AE fp16 quantised"
+          }
+        ]
+      }
+    ],
+    "artifacts": [
+      {
+        "path": "/Users/deepakkumaryadav/ids_project/prahari_lite/models/ae_lite_v1.pkl",
+        "relpath": "models/ae_lite_v1.pkl",
+        "sha256": "ac8cddf71fa9f366e918670e38090a589aab59cdda986a9d65e3f3745c6153c3",
+        "size_kb": 4.8,
+        "notes": "AE 15-8-4-8-15 fp32",
+        "is_model": true
+      },
+      {
+        "path": "/Users/deepakkumaryadav/ids_project/prahari_lite/models/ae_lite_v1_quantised.pkl",
+        "relpath": "models/ae_lite_v1_quantised.pkl",
+        "sha256": "799074b8ddee00d8c0141121476f927a4bde6465c4ae4cc08cca7e4cfedf6a60",
+        "size_kb": 4.1,
+        "notes": "AE fp16 quantised",
+        "is_model": true
+      }
+    ]
   }
 ]

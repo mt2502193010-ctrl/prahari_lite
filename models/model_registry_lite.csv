@@ -4,3 +4,8 @@ timestamp,model_name,model_type,f1_score,fpr,bram_kb,sha256,notes
 2026-03-28T11:20:55.327604,ae_lite_v1,Autoencoder,,,,ba82733a17925e58,threshold=1.564258
 2026-03-28T05:50:52+00:00,ae_lite_v1.pkl,v1,,,,ba82733a17925e58,AE 15-8-4-8-15 fp32
 2026-03-28T05:50:52+00:00,ae_lite_v1_quantised.pkl,v1,,,,6c576df2421426a0,AE fp16 quantised
+2026-03-28T11:42:35.351822,dt_lite_v1,DecisionTree,0.7888,0.0475,11.23,dabaabd3b615d532,depth=15
+2026-03-28T06:12:31+00:00,dt_lite_v1.pkl,v1,,,,dabaabd3b615d532,DT depth=15
+2026-03-28T11:42:48.034136,ae_lite_v1,Autoencoder,,,,ac8cddf71fa9f366,threshold=2.408013
+2026-03-28T06:12:45+00:00,ae_lite_v1.pkl,v1,,,,ac8cddf71fa9f366,AE 15-8-4-8-15 fp32
+2026-03-28T06:12:45+00:00,ae_lite_v1_quantised.pkl,v1,,,,799074b8ddee00d8,AE fp16 quantised

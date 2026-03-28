@@ -292,6 +292,23 @@ CIC_COL_MAP = {
     'bwd_pkts': 'Total Backward Packets', 'syn_flag': 'SYN Flag Count',
     'pkt_len_mean': 'Packet Length Mean',
 }
+CIC_COL_MAP_V2 = {
+    'dst_port': 'Dst Port', 'fwd_bytes': 'TotLen Fwd Pkts',
+    'init_win_bwd': 'Init Bwd Win Byts', 'init_win_fwd': 'Init Fwd Win Byts',
+    'bwd_bytes': 'TotLen Bwd Pkts', 'fwd_seg_min': 'Fwd Seg Size Min',
+    'fwd_pkt_mean': 'Fwd Pkt Len Mean', 'flow_iat_min': 'Flow IAT Min',
+    'duration': 'Flow Duration', 'flow_byts_s': 'Flow Byts/s',
+    'avg_pkt_size': 'Pkt Size Avg', 'bwd_pkt_max': 'Bwd Pkt Len Max',
+    'bwd_pkts': 'Tot Bwd Pkts', 'syn_flag': 'SYN Flag Cnt', 'pkt_len_mean': 'Pkt Len Mean',
+}
+UNSW_COL_MAP = {
+    'dst_port': 'dport', 'fwd_bytes': 'sbytes', 'bwd_bytes': 'dbytes',
+    'fwd_pkt_mean': 'smean', 'bwd_pkt_max': 'dmean', 'bwd_pkts': 'dpkts',
+    'duration': 'dur', 'flow_byts_s': 'rate', 'avg_pkt_size': 'smean',
+    'flow_iat_min': 'sinpkt', 'fwd_seg_min': 'sinpkt',
+    'syn_flag': 'swin', 'pkt_len_mean': 'smean',
+    'init_win_fwd': 'swin', 'init_win_bwd': 'dwin',
+}
 LABEL_MAP = {
     'BENIGN': 'NORMAL', 'benign': 'NORMAL', 'Normal': 'NORMAL', 'NORMAL': 'NORMAL',
     'FTP-Patator': 'APT', 'SSH-Patator': 'APT', 'Heartbleed': 'APT',
@@ -304,35 +321,80 @@ LABEL_MAP = {
     'Web Attack - Brute Force': 'APT', 'Web Attack - XSS': 'APT',
     'Web Attack - Sql Injection': 'APT',
 }
+UNSW_LABEL_MAP = {
+    'Normal': 'NORMAL', 'normal': 'NORMAL',
+    'Generic': 'TRAFFIC_SPIKE', 'DoS': 'TRAFFIC_SPIKE',
+    'Reconnaissance': 'RECON',
+    'Exploits': 'APT', 'Backdoor': 'APT', 'Analysis': 'APT',
+    'Fuzzers': 'NR_MALWARE', 'Shellcode': 'NR_MALWARE', 'Worms': 'NR_MALWARE',
+}
 
 
 def _load_real_data_for_val():
-    """Load real CSV data for validation (same source as DT training) with synthetic fallback."""
-    data_paths = [
-        Path('/Users/deepakkumaryadav/ids_project/docker_env/data/cicids_combined.csv'),
-        Path('/Users/deepakkumaryadav/ids_project/docker_env/data/cicids_upload.csv'),
-        Path('/app/data/cicids_combined.csv'),
-    ]
-    for p in data_paths:
+    """Load and combine CIC-IDS-2017 + UNSW-NB15 for validation.
+    Strips leading spaces from column headers (CIC-IDS-2017 quirk).
+    Falls back to synthetic data if neither dataset is found.
+    """
+    DATA_DIR = Path('/Users/deepakkumaryadav/ids_project/docker_env/data')
+    frames = []
+
+    # ── CIC-IDS-2017 ──────────────────────────────────────────────────────
+    for p in [DATA_DIR / 'cicids_combined.csv', DATA_DIR / 'cicids_upload.csv']:
         if not p.exists():
             continue
         try:
-            df = pd.read_csv(p, nrows=200000)
-            rev = {v: k for k, v in CIC_COL_MAP.items()}
-            df = df.rename(columns={c: rev[c] for c in df.columns if c in rev})
+            df = pd.read_csv(p, nrows=200000, low_memory=False)
+            df.columns = [c.strip().lstrip('\ufeff') for c in df.columns]
+            for cmap in [CIC_COL_MAP, CIC_COL_MAP_V2]:
+                rev = {v: k for k, v in cmap.items()}
+                renamed = df.rename(columns={c: rev[c] for c in df.columns if c in rev})
+                if all(f in renamed.columns for f in FEATURES_15):
+                    df = renamed
+                    break
+            else:
+                continue
             label_col = next((lc for lc in ['label', 'Label', 'Label '] if lc in df.columns), None)
             if label_col is None:
                 continue
-            df['label'] = df[label_col].map(LABEL_MAP)
+            df['label'] = df[label_col].str.strip().map(LABEL_MAP)
             df = df.dropna(subset=['label'])
-            if not all(f in df.columns for f in FEATURES_15):
-                continue
-            print(f"[VAL] Using real data: {p.name} ({len(df)} rows)")
-            return df[FEATURES_15 + ['label']]
-        except Exception:
+            df = df[FEATURES_15 + ['label']].copy()
+            df = df.replace([float('inf'), float('-inf')], np.nan).fillna(0.0)
+            print(f"[VAL] CIC data: {p.name} ({len(df)} rows)")
+            frames.append(df)
+            break
+        except Exception as e:
+            print(f"[VAL] CIC load error ({p.name}): {e}")
             continue
-    print("[VAL] No real data found — using synthetic fallback")
-    return generate_synthetic_data(n_per_class=5000, random_state=99)
+
+    # ── UNSW-NB15 ─────────────────────────────────────────────────────────
+    unsw_path = DATA_DIR / 'unsw_train.csv'
+    if unsw_path.exists():
+        try:
+            df = pd.read_csv(unsw_path, nrows=150000, low_memory=False)
+            df.columns = [c.strip().lstrip('\ufeff') for c in df.columns]
+            df['label'] = df.get('attack_cat', pd.Series()).fillna('Normal').str.strip().map(UNSW_LABEL_MAP)
+            df = df.dropna(subset=['label'])
+            rename = {v: k for k, v in UNSW_COL_MAP.items() if v in df.columns}
+            df = df.rename(columns=rename)
+            for feat in FEATURES_15:
+                if feat not in df.columns:
+                    df[feat] = 0.0
+            df = df[FEATURES_15 + ['label']].copy()
+            df = df.replace([float('inf'), float('-inf')], np.nan).fillna(0.0)
+            print(f"[VAL] UNSW-NB15: {len(df)} rows")
+            frames.append(df)
+        except Exception as e:
+            print(f"[VAL] UNSW load error: {e}")
+
+    if not frames:
+        print("[VAL] No real data found — using synthetic fallback")
+        return generate_synthetic_data(n_per_class=5000, random_state=99)
+
+    combined = pd.concat(frames, ignore_index=True)
+    print(f"[VAL] Combined validation set: {len(combined)} rows, "
+          f"classes: {combined['label'].value_counts().to_dict()}")
+    return combined
 
 
 def validate():

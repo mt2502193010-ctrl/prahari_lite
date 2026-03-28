@@ -226,8 +226,50 @@ def generate_synthetic_data(n_per_class=10000, random_state=42):
     return df
 
 
+# UNSW-NB15 column mapping: their feature names → our 15 canonical names.
+# init_win_fwd / init_win_bwd are TCP-only; UNSW covers multi-protocol so
+# we default them to 0 (handled post-load by fillna).
+UNSW_COL_MAP = {
+    'dst_port':    'dport',
+    'fwd_bytes':   'sbytes',
+    'bwd_bytes':   'dbytes',
+    'fwd_pkt_mean': 'smean',
+    'bwd_pkt_max': 'dmean',   # best available proxy for bwd pkt size
+    'bwd_pkts':    'dpkts',
+    'duration':    'dur',
+    'flow_byts_s': 'rate',
+    'avg_pkt_size': 'smean',  # forward mean as proxy
+    'flow_iat_min': 'sinpkt', # source inter-packet time (µs equivalent)
+    'fwd_seg_min': 'sinpkt',  # same proxy
+    'syn_flag':    'swin',    # TCP window (non-zero means TCP/SYN seen)
+    'pkt_len_mean': 'smean',
+    'init_win_fwd': 'swin',
+    'init_win_bwd': 'dwin',
+}
+
+# UNSW-NB15 attack_cat → our 5 classes
+UNSW_LABEL_MAP = {
+    'Normal':          'NORMAL',
+    'normal':          'NORMAL',
+    'Generic':         'TRAFFIC_SPIKE',  # Generic DoS/flood
+    'DoS':             'TRAFFIC_SPIKE',
+    'Reconnaissance':  'RECON',
+    'Exploits':        'APT',
+    'Backdoor':        'APT',
+    'Analysis':        'APT',
+    'Fuzzers':         'NR_MALWARE',
+    'Shellcode':       'NR_MALWARE',
+    'Worms':           'NR_MALWARE',
+}
+
+
 def try_map_columns(df, col_map):
-    """Try to rename columns using a mapping; return None if any key missing."""
+    """Try to rename columns using a mapping; return None if any key missing.
+    Strips leading/trailing whitespace from column names before matching
+    (CIC-IDS-2017 CSVs often have space-prefixed headers).
+    """
+    # Strip whitespace and BOM from column names
+    df = df.rename(columns=lambda c: c.strip().lstrip('\ufeff'))
     rev = {v: k for k, v in col_map.items()}
     available = {c: rev[c] for c in df.columns if c in rev}
     if len(available) >= len(FEATURES_15):
@@ -235,7 +277,116 @@ def try_map_columns(df, col_map):
     return None
 
 
+def load_unsw_data(path: Path, n_rows: int = 150000) -> pd.DataFrame | None:
+    """Load and map UNSW-NB15 data to the 15 canonical features."""
+    try:
+        df = pd.read_csv(path, nrows=n_rows)
+        df.columns = [c.strip().lstrip('\ufeff') for c in df.columns]
+
+        # Resolve label: prefer attack_cat column
+        if 'attack_cat' in df.columns:
+            df['label'] = df['attack_cat'].fillna('Normal').str.strip().map(UNSW_LABEL_MAP)
+        elif 'label' in df.columns:
+            df['label'] = df['label'].map({0: 'NORMAL', 1: 'TRAFFIC_SPIKE'})
+        else:
+            return None
+
+        df = df.dropna(subset=['label'])
+
+        # Map UNSW columns → canonical names
+        rename = {v: k for k, v in UNSW_COL_MAP.items() if v in df.columns}
+        df = df.rename(columns=rename)
+
+        # Fill TCP-only features that UNSW doesn't have
+        for feat in FEATURES_15:
+            if feat not in df.columns:
+                df[feat] = 0.0
+
+        df = df[FEATURES_15 + ['label']].copy()
+        df = df.replace([float('inf'), float('-inf')], np.nan).fillna(0.0)
+        print(f"[DT] Loaded UNSW-NB15: {len(df)} rows from {path.name}")
+        print(f"[DT]   Classes: {df['label'].value_counts().to_dict()}")
+        return df
+    except Exception as e:
+        print(f"[DT] UNSW load failed ({path.name}): {e}")
+        return None
+
+
 def load_real_data():
+    """Load and COMBINE all available real datasets.
+
+    Priority:
+      1. cicids_combined.csv  — full CIC-IDS-2017 (2.8M rows, sample 200k)
+      2. cicids_upload.csv    — pre-processed CIC subset (17k rows)
+      3. unsw_train.csv       — UNSW-NB15 (175k rows)
+    All successfully loaded frames are concatenated into one combined dataset.
+    Returns None only if NO data source loads successfully.
+    """
+    DATA_DIR = Path('/Users/deepakkumaryadav/ids_project/docker_env/data')
+    frames = []
+
+    # ── CIC-IDS-2017 sources ──────────────────────────────────────────────
+    cic_paths = [
+        DATA_DIR / 'cicids_combined.csv',
+        DATA_DIR / 'cicids_upload.csv',
+        Path('/app/data/cicids_combined.csv'),
+    ]
+
+    for p in cic_paths:
+        if not p.exists():
+            continue
+        try:
+            df = pd.read_csv(p, nrows=200000, low_memory=False)
+            for cmap in [CIC_COL_MAP, CIC_COL_MAP_V2]:
+                mapped = try_map_columns(df, cmap)
+                if mapped is not None:
+                    df = mapped
+                    break
+            else:
+                print(f"[DT] Column mismatch, skipping {p.name}")
+                continue
+
+            label_col = next((lc for lc in ['label', 'Label', 'Label ', ' Label']
+                              if lc in df.columns), None)
+            if label_col is None:
+                print(f"[DT] No label column in {p.name}, skipping")
+                continue
+
+            df['label'] = df[label_col].str.strip().map(LABEL_MAP)
+            df = df.dropna(subset=['label'])
+            missing = [f for f in FEATURES_15 if f not in df.columns]
+            if missing:
+                print(f"[DT] Missing features {missing} in {p.name}, skipping")
+                continue
+
+            df = df[FEATURES_15 + ['label']].copy()
+            df = df.replace([float('inf'), float('-inf')], np.nan).fillna(0.0)
+            print(f"[DT] Loaded CIC: {len(df)} rows from {p.name}")
+            print(f"[DT]   Classes: {df['label'].value_counts().to_dict()}")
+            frames.append(df)
+            break   # use the first CIC source that works
+        except Exception as e:
+            print(f"[DT] Error loading {p}: {e}")
+            continue
+
+    # ── UNSW-NB15 ─────────────────────────────────────────────────────────
+    for unsw_path in [DATA_DIR / 'unsw_train.csv', Path('/app/data/unsw_train.csv')]:
+        if unsw_path.exists():
+            unsw_df = load_unsw_data(unsw_path)
+            if unsw_df is not None:
+                frames.append(unsw_df)
+            break
+
+    if not frames:
+        return None
+
+    combined = pd.concat(frames, ignore_index=True)
+    print(f"[DT] Combined dataset: {len(combined)} rows from {len(frames)} source(s)")
+    print(f"[DT] Combined classes: {combined['label'].value_counts().to_dict()}")
+    return combined
+
+
+def load_real_data_legacy():
     """Try to load real CSV data from docker_env/data/ or common paths."""
     data_paths = [
         Path('/Users/deepakkumaryadav/ids_project/docker_env/data/cicids_combined.csv'),
