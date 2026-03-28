@@ -1,1 +1,6 @@
 timestamp,model_name,model_type,f1_score,fpr,bram_kb,sha256,notes
+2026-03-28T11:20:42.474414,dt_lite_v1,DecisionTree,0.9839,0.0500,1.18,b1a3540ef5b09352,depth=15
+2026-03-28T05:50:41+00:00,dt_lite_v1.pkl,v1,0.9839,,,b1a3540ef5b09352,DT depth=15
+2026-03-28T11:20:55.327604,ae_lite_v1,Autoencoder,,,,ba82733a17925e58,threshold=1.564258
+2026-03-28T05:50:52+00:00,ae_lite_v1.pkl,v1,,,,ba82733a17925e58,AE 15-8-4-8-15 fp32
+2026-03-28T05:50:52+00:00,ae_lite_v1_quantised.pkl,v1,,,,6c576df2421426a0,AE fp16 quantised

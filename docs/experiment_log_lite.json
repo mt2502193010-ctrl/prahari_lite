@@ -1,1 +1,285 @@
-[]
+[
+  {
+    "meta": {
+      "timestamp": "2026-03-28T05:50:41+00:00",
+      "script_name": "train_decision_tree",
+      "version": "v1",
+      "system": "prahari_lite",
+      "git_hash": "389c3ab",
+      "python": "3.14.3",
+      "os": "macOS-26.4-arm64-arm-64bit-Mach-O",
+      "hostname": "Deepaks-MacBook-Air.local",
+      "env": "venv:3.14"
+    },
+    "sections": [
+      {
+        "name": "Setup",
+        "entries": [
+          {
+            "type": "decision",
+            "what": "Use prahari_lite isolated training",
+            "why": "Completely separate from v7"
+          }
+        ]
+      },
+      {
+        "name": "Data",
+        "entries": [
+          {
+            "type": "param",
+            "key": "data_source",
+            "value": "real"
+          },
+          {
+            "type": "param",
+            "key": "total_rows",
+            "value": 15047
+          },
+          {
+            "type": "param",
+            "key": "class_distribution",
+            "value": {
+              "TRAFFIC_SPIKE": 7500,
+              "APT": 3047,
+              "NORMAL": 1500,
+              "NR_MALWARE": 1500,
+              "RECON": 1500
+            }
+          }
+        ]
+      },
+      {
+        "name": "Training",
+        "entries": [
+          {
+            "type": "param",
+            "key": "depth_6_f1",
+            "value": 0.971
+          },
+          {
+            "type": "param",
+            "key": "depth_6_bram_kb",
+            "value": 0.45
+          },
+          {
+            "type": "param",
+            "key": "depth_8_f1",
+            "value": 0.9733
+          },
+          {
+            "type": "param",
+            "key": "depth_8_bram_kb",
+            "value": 0.66
+          },
+          {
+            "type": "param",
+            "key": "depth_10_f1",
+            "value": 0.9752
+          },
+          {
+            "type": "param",
+            "key": "depth_10_bram_kb",
+            "value": 0.77
+          },
+          {
+            "type": "param",
+            "key": "depth_12_f1",
+            "value": 0.9759
+          },
+          {
+            "type": "param",
+            "key": "depth_12_bram_kb",
+            "value": 0.95
+          },
+          {
+            "type": "param",
+            "key": "depth_15_f1",
+            "value": 0.9811
+          },
+          {
+            "type": "param",
+            "key": "depth_15_bram_kb",
+            "value": 1.18
+          }
+        ]
+      },
+      {
+        "name": "Results",
+        "entries": [
+          {
+            "type": "param",
+            "key": "best_depth",
+            "value": 15
+          },
+          {
+            "type": "param",
+            "key": "f1_test",
+            "value": 0.9839
+          },
+          {
+            "type": "param",
+            "key": "fpr_test",
+            "value": 0.05
+          },
+          {
+            "type": "param",
+            "key": "bram_kb",
+            "value": 1.18
+          },
+          {
+            "type": "param",
+            "key": "confidence_threshold",
+            "value": 0.9977
+          },
+          {
+            "type": "param",
+            "key": "n_leaves",
+            "value": 81
+          },
+          {
+            "type": "check",
+            "name": "F1 >= 0.80",
+            "passed": true,
+            "value": 0.9839175083189182,
+            "note": ""
+          },
+          {
+            "type": "check",
+            "name": "BRAM < 25KB",
+            "passed": true,
+            "value": 1.18408203125,
+            "note": ""
+          },
+          {
+            "type": "artifact",
+            "path": "models/dt_lite_v1.pkl",
+            "sha256": "b1a3540ef5b093521cce3356478fcc4e3630087de70d74e3186f2fee4de59280",
+            "notes": "DT depth=15"
+          },
+          {
+            "type": "artifact",
+            "path": "outputs/dt_depth_comparison.csv",
+            "sha256": "b87188c9ef1033184dfd30e1bad91149e4b93125b1c296a90862033505894553",
+            "notes": ""
+          },
+          {
+            "type": "artifact",
+            "path": "outputs/leaf_purity_distribution.csv",
+            "sha256": "7504f574337218679c788a8c8e97678477220397c60253ca11ffa1091e0a799c",
+            "notes": ""
+          },
+          {
+            "type": "artifact",
+            "path": "outputs/dt_confidence_threshold.json",
+            "sha256": "c4beaed035cb5e6bce776b61d92c7de9d9424edbd747ebb1f8828fd09fd36bbe",
+            "notes": ""
+          }
+        ]
+      }
+    ],
+    "artifacts": [
+      {
+        "path": "/Users/deepakkumaryadav/ids_project/prahari_lite/models/dt_lite_v1.pkl",
+        "relpath": "models/dt_lite_v1.pkl",
+        "sha256": "b1a3540ef5b093521cce3356478fcc4e3630087de70d74e3186f2fee4de59280",
+        "size_kb": 17.7,
+        "notes": "DT depth=15",
+        "is_model": true
+      },
+      {
+        "path": "/Users/deepakkumaryadav/ids_project/prahari_lite/outputs/dt_depth_comparison.csv",
+        "relpath": "outputs/dt_depth_comparison.csv",
+        "sha256": "b87188c9ef1033184dfd30e1bad91149e4b93125b1c296a90862033505894553",
+        "size_kb": 0.3,
+        "notes": "",
+        "is_model": false
+      },
+      {
+        "path": "/Users/deepakkumaryadav/ids_project/prahari_lite/outputs/leaf_purity_distribution.csv",
+        "relpath": "outputs/leaf_purity_distribution.csv",
+        "sha256": "7504f574337218679c788a8c8e97678477220397c60253ca11ffa1091e0a799c",
+        "size_kb": 1.8,
+        "notes": "",
+        "is_model": false
+      },
+      {
+        "path": "/Users/deepakkumaryadav/ids_project/prahari_lite/outputs/dt_confidence_threshold.json",
+        "relpath": "outputs/dt_confidence_threshold.json",
+        "sha256": "c4beaed035cb5e6bce776b61d92c7de9d9424edbd747ebb1f8828fd09fd36bbe",
+        "size_kb": 0.3,
+        "notes": "",
+        "is_model": false
+      }
+    ]
+  },
+  {
+    "meta": {
+      "timestamp": "2026-03-28T05:50:52+00:00",
+      "script_name": "train_autoencoder",
+      "version": "v1",
+      "system": "prahari_lite",
+      "git_hash": "389c3ab",
+      "python": "3.14.3",
+      "os": "macOS-26.4-arm64-arm-64bit-Mach-O",
+      "hostname": "Deepaks-MacBook-Air.local",
+      "env": "venv:3.14"
+    },
+    "sections": [
+      {
+        "name": "Setup",
+        "entries": [
+          {
+            "type": "decision",
+            "what": "Train AE on NORMAL only",
+            "why": "Anomaly detection philosophy"
+          }
+        ]
+      },
+      {
+        "name": "Results",
+        "entries": [
+          {
+            "type": "param",
+            "key": "threshold",
+            "value": 1.564258
+          },
+          {
+            "type": "param",
+            "key": "best_val_loss",
+            "value": 0.688474
+          },
+          {
+            "type": "artifact",
+            "path": "models/ae_lite_v1.pkl",
+            "sha256": "ba82733a17925e58deae9bf5f8c674b0b84c9c18234b6e4e145db74909603c21",
+            "notes": "AE 15-8-4-8-15 fp32"
+          },
+          {
+            "type": "artifact",
+            "path": "models/ae_lite_v1_quantised.pkl",
+            "sha256": "6c576df2421426a058f12965a80ab288a5b80416fcf60e686b9c8b738b00d106",
+            "notes": "AE fp16 quantised"
+          }
+        ]
+      }
+    ],
+    "artifacts": [
+      {
+        "path": "/Users/deepakkumaryadav/ids_project/prahari_lite/models/ae_lite_v1.pkl",
+        "relpath": "models/ae_lite_v1.pkl",
+        "sha256": "ba82733a17925e58deae9bf5f8c674b0b84c9c18234b6e4e145db74909603c21",
+        "size_kb": 4.8,
+        "notes": "AE 15-8-4-8-15 fp32",
+        "is_model": true
+      },
+      {
+        "path": "/Users/deepakkumaryadav/ids_project/prahari_lite/models/ae_lite_v1_quantised.pkl",
+        "relpath": "models/ae_lite_v1_quantised.pkl",
+        "sha256": "6c576df2421426a058f12965a80ab288a5b80416fcf60e686b9c8b738b00d106",
+        "size_kb": 4.1,
+        "notes": "AE fp16 quantised",
+        "is_model": true
+      }
+    ]
+  }
+]

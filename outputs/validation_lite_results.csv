@@ -1,0 +1,12 @@
+metric,prahari_lite,prahari_v7
+combined_f1,0.9879091451776633,0.855
+fpr,0.023333333333333334,N/A
+apt_recall,0.9944207417131605,0.881
+recon_recall,0.9953333333333333,0.84
+ts_recall,0.9912,0.817
+nrm_recall,0.998,0.936
+zero_day_count,10.0,N/A
+zero_day_pct,0.06645843025187745,N/A
+dt_threshold,0.997672129906259,N/A
+ae_threshold,1.5642576217651367,N/A
+bram_kb,1.18408203125,640

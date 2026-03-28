@@ -1,0 +1,12 @@
+{
+  "confidence_threshold": 0.997672129906259,
+  "n_leaves": 81,
+  "mean_leaf_purity": 0.8849129893536126,
+  "min_leaf_purity": 0.4,
+  "max_leaf_purity": 1.0,
+  "best_depth": 15,
+  "f1_test": 0.9839175083189182,
+  "fpr_test": 0.05,
+  "bram_kb": 1.18408203125,
+  "timestamp": "2026-03-28T11:20:42.473766"
+}

@@ -282,6 +282,59 @@ def fusion_predict(X_scaled, dt, scaler, leaf_purities, dt_threshold, ae_model, 
     return final_preds, routing, dt_preds, dt_purities, ae_errors
 
 
+CIC_COL_MAP = {
+    'dst_port': 'Destination Port', 'fwd_bytes': 'Total Length of Fwd Packets',
+    'init_win_bwd': 'Init_Win_bytes_backward', 'init_win_fwd': 'Init_Win_bytes_forward',
+    'bwd_bytes': 'Total Length of Bwd Packets', 'fwd_seg_min': 'min_seg_size_forward',
+    'fwd_pkt_mean': 'Fwd Packet Length Mean', 'flow_iat_min': 'Flow IAT Min',
+    'duration': 'Flow Duration', 'flow_byts_s': 'Flow Bytes/s',
+    'avg_pkt_size': 'Average Packet Size', 'bwd_pkt_max': 'Bwd Packet Length Max',
+    'bwd_pkts': 'Total Backward Packets', 'syn_flag': 'SYN Flag Count',
+    'pkt_len_mean': 'Packet Length Mean',
+}
+LABEL_MAP = {
+    'BENIGN': 'NORMAL', 'benign': 'NORMAL', 'Normal': 'NORMAL', 'NORMAL': 'NORMAL',
+    'FTP-Patator': 'APT', 'SSH-Patator': 'APT', 'Heartbleed': 'APT',
+    'Infiltration': 'APT', 'INFILTRATION': 'APT', 'APT': 'APT',
+    'PortScan': 'RECON', 'RECON': 'RECON',
+    'Bot': 'NR_MALWARE', 'BOT': 'NR_MALWARE', 'NR_MALWARE': 'NR_MALWARE',
+    'DoS Hulk': 'TRAFFIC_SPIKE', 'DoS GoldenEye': 'TRAFFIC_SPIKE',
+    'DoS slowloris': 'TRAFFIC_SPIKE', 'DoS Slowhttptest': 'TRAFFIC_SPIKE',
+    'DDoS': 'TRAFFIC_SPIKE', 'DDOS': 'TRAFFIC_SPIKE', 'TRAFFIC_SPIKE': 'TRAFFIC_SPIKE',
+    'Web Attack - Brute Force': 'APT', 'Web Attack - XSS': 'APT',
+    'Web Attack - Sql Injection': 'APT',
+}
+
+
+def _load_real_data_for_val():
+    """Load real CSV data for validation (same source as DT training) with synthetic fallback."""
+    data_paths = [
+        Path('/Users/deepakkumaryadav/ids_project/docker_env/data/cicids_combined.csv'),
+        Path('/Users/deepakkumaryadav/ids_project/docker_env/data/cicids_upload.csv'),
+        Path('/app/data/cicids_combined.csv'),
+    ]
+    for p in data_paths:
+        if not p.exists():
+            continue
+        try:
+            df = pd.read_csv(p, nrows=200000)
+            rev = {v: k for k, v in CIC_COL_MAP.items()}
+            df = df.rename(columns={c: rev[c] for c in df.columns if c in rev})
+            label_col = next((lc for lc in ['label', 'Label', 'Label '] if lc in df.columns), None)
+            if label_col is None:
+                continue
+            df['label'] = df[label_col].map(LABEL_MAP)
+            df = df.dropna(subset=['label'])
+            if not all(f in df.columns for f in FEATURES_15):
+                continue
+            print(f"[VAL] Using real data: {p.name} ({len(df)} rows)")
+            return df[FEATURES_15 + ['label']]
+        except Exception:
+            continue
+    print("[VAL] No real data found — using synthetic fallback")
+    return generate_synthetic_data(n_per_class=5000, random_state=99)
+
+
 def validate():
     print("=" * 60)
     print("PRAHARI-Lite: Fusion Validation")
@@ -289,12 +342,13 @@ def validate():
 
     dt, scaler, leaf_purities, dt_threshold, ae_model, ae_threshold = load_models()
 
-    # Generate test data (different random state from training)
-    df = generate_synthetic_data(n_per_class=5000, random_state=99)
+    # Load test data — use real data if available (same source as DT training),
+    # else fall back to synthetic. Using real data gives meaningful F1 numbers.
+    df = _load_real_data_for_val()
     print(f"[VAL] Test dataset: {len(df)} rows")
 
     X = df[FEATURES_15].values.astype(float)
-    X = np.nan_to_num(X)
+    X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
     try:
         X_scaled = scaler.transform(X)
     except Exception:

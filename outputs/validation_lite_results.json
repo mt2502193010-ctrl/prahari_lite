@@ -1,0 +1,29 @@
+{
+  "combined_f1": 0.9879091451776633,
+  "fpr": 0.023333333333333334,
+  "apt_recall": 0.9944207417131605,
+  "recon_recall": 0.9953333333333333,
+  "ts_recall": 0.9912,
+  "nrm_recall": 0.998,
+  "zero_day_count": 10,
+  "zero_day_pct": 0.06645843025187745,
+  "routing": {
+    "DT_CONFIDENT": 14833,
+    "AE_FLAGGED": 10,
+    "DT_LOW_CONF_AE_NORMAL": 204
+  },
+  "dt_threshold": 0.997672129906259,
+  "ae_threshold": 1.5642576217651367,
+  "bram_kb": 1.18408203125,
+  "v7_reference": {
+    "combined_f1": 0.855,
+    "cic2017_f1": 0.992,
+    "cic2017_fpr": 0.0042,
+    "apt_recall": 0.881,
+    "recon_recall": 0.84,
+    "ts_recall": 0.817,
+    "nrm_recall": 0.936,
+    "latency_ms": 2.06,
+    "bram_kb": 640
+  }
+}
