@@ -4,10 +4,14 @@
 // Estimated resources: ~500 LUTs, 1 BRAM18, 8 DSPs, latency ~38 cycles
 // Weights stored as ap_fixed<8,4> for BRAM efficiency
 
+#ifdef __SYNTHESIS__
 #include <ap_fixed.h>
 #include <hls_stream.h>
 #include <ap_int.h>
 #include <hls_math.h>
+#else
+#include "ap_types.h"
+#endif
 
 // Fixed-point types
 typedef ap_fixed<16, 8>  feature_t;   // Input features (Q8.8)
@@ -44,13 +48,15 @@ static weight_t dec1_b[DEC1_DIM];
 static weight_t dec2_w[DEC2_DIM][DEC1_DIM];
 static weight_t dec2_b[DEC2_DIM];
 
-// Anomaly threshold (set from Python-computed 95th percentile)
-static error_t AE_THRESHOLD = 0.05;
+// Anomaly threshold: 95th percentile of normal traffic reconstruction error
+// Float: 2.408013  Fixed-point (AE_THRESHOLD_FP/AE_T_SCALE): 2466/1024
+// Overwritten at runtime via ae_load_weights() from PS
+static error_t AE_THRESHOLD = 2.408;
 
 // ReLU activation
 static activation_t relu(activation_t x) {
 #pragma HLS INLINE
-    return (x > 0) ? x : (activation_t)0;
+    return (x > (activation_t)0) ? x : (activation_t)0;
 }
 
 // Dense layer: output = ReLU(W * input + b)

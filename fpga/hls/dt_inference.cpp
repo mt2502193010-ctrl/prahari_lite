@@ -3,16 +3,20 @@
 // Architecture: Fixed-point DT traversal with leaf purity output
 // Estimated resources: ~800 LUTs, 2 BRAM18, 0 DSPs, latency ~12 cycles
 
+#ifdef __SYNTHESIS__
 #include <ap_fixed.h>
 #include <hls_stream.h>
 #include <ap_int.h>
+#else
+#include "ap_types.h"
+#endif
 
 // Fixed-point types for FPGA efficiency
 typedef ap_fixed<16, 8>  feature_t;   // Q8.8 fixed-point for features
 typedef ap_fixed<16, 8>  threshold_t; // Q8.8 for tree thresholds
 typedef ap_uint<3>        label_t;     // 0-4: NORMAL/APT/RECON/TS/NRM
 typedef ap_uint<16>       purity_t;    // 0-65535 representing 0.0-1.0
-typedef ap_uint<10>       node_id_t;   // Up to 1024 tree nodes
+typedef ap_uint<11>       node_id_t;   // Up to 2047 nodes (depth-15 model has 1533)
 
 // Input/output structs
 struct dt_input_t {
@@ -43,9 +47,9 @@ struct tree_node_t {
     purity_t     leaf_purity;     // purity if leaf (0-65535)
 };
 
-// Maximum tree size (depth=12 → max 4095 nodes, but BRAM-budgeted to ~511)
-#define MAX_NODES 512
-#define DT_CONFIDENCE_THRESHOLD 45875  // 0.7 * 65535
+// Depth-15 model has 1533 nodes; +1 guard for safety
+#define MAX_NODES 1534
+#define DT_CONFIDENCE_THRESHOLD 63034  // 0.9618 * 65535 (calibrated from training)
 
 // Tree stored in BRAM
 static tree_node_t tree_nodes[MAX_NODES];
@@ -112,7 +116,7 @@ void dt_inference(
 
 // Utility: convert float purity (0.0-1.0) to fixed-point (0-65535)
 purity_t float_to_purity(float p) {
-    return (purity_t)(p * 65535.0f);
+    return (purity_t)(unsigned int)(p * 65535.0f);
 }
 
 // Utility: load tree from external memory (called once at startup)

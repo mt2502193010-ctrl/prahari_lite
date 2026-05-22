@@ -4,9 +4,13 @@
 // Novel contribution: DT leaf purity as zero-day confidence gate
 // Estimated resources: ~100 LUTs, 0 BRAM18, 0 DSPs, latency ~1 cycle
 
+#ifdef __SYNTHESIS__
 #include <ap_fixed.h>
 #include <hls_stream.h>
 #include <ap_int.h>
+#else
+#include "ap_types.h"
+#endif
 
 typedef ap_uint<3>  label_t;    // 0=NORMAL 1=APT 2=RECON 3=TS 4=NRM 5=ZERO_DAY
 typedef ap_uint<16> purity_t;   // 0-65535 representing 0.0-1.0
