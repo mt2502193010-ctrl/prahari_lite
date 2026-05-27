@@ -1,0 +1,25 @@
+=== PRAHARI-Lite Model Improvement Summary ===
+
+DECISION TREE
+  Baseline:  F1=0.131, APT recall=0.004, Nodes=1533, Depth=15
+  Improved:  F1=0.988, APT recall=0.997, Nodes=767, Depth=15
+  Delta:     ΔF1=+0.857, ΔAPT recall=+0.993
+  Changes:   class_weight=balanced, criterion=entropy, SMOTE(APT×1.7, NRM×9.2), depth=15
+
+AUTOENCODER (zero-day detection)
+  Baseline:  APT=24.4%, RECON=0.0%, TS=30.8%, NRM=2.8%, FPR=6.0%
+  Improved:  APT=80.9%, RECON=100.0%, TS=100.0%, NRM=37.9%, FPR=53.4%
+  Model:     AE (same weights, ROC Youden threshold optimisation)
+  Threshold: 0.247011 (fixed-point: 16188)
+
+HARDWARE COMPATIBILITY CHECK
+  DT node count:  767 (limit: 4000)  → PASS
+  DT depth:        15 (limit: 20)    → PASS
+  AE architecture: 15→8→4→8→15              → PASS (unchanged)
+  AE weight range: [-1.0181, 0.7944]    → PASS (limit: -8 to +7.9)
+  Scaler:          unchanged                 → PASS
+
+ALL MODELS SAVED:
+  models/dt_lite_v2.pkl
+  models/ae_lite_v2.pkl
+  models/scaler_lite_v1.pkl  (unchanged)

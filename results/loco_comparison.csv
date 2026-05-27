@@ -1,0 +1,6 @@
+class,baseline_detection_pct,v2_detection_pct,delta_pct
+APT,24.38,80.92,56.54
+RECON,0.01,99.96,99.94
+TRAFFIC_SPIKE,30.76,99.98,69.23
+NR_MALWARE,2.81,37.85,35.04
+FPR,6.03,53.41,47.38
