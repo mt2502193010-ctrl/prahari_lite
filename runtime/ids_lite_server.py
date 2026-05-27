@@ -79,6 +79,12 @@ _state = {
     },
     'alert_history':    deque(maxlen=1000),
     'start_time':       time.time(),
+    # Rolling 10-minute per-minute buckets for the live traffic chart.
+    # Each entry: {'ts': epoch_minute, 'flows': int, 'attacks': int}
+    'minute_buckets':   deque(maxlen=10),
+    '_current_minute':  int(time.time() // 60),
+    '_minute_flows':    0,
+    '_minute_attacks':  0,
 }
 
 # ── Model globals ───────────────────────────────────────────────────────────────
@@ -314,6 +320,21 @@ def detect():
         if result['is_attack']:
             _state['alert_history'].append(alert)
 
+        # Rolling per-minute bucket update
+        cur_min = int(time.time() // 60)
+        if cur_min != _state['_current_minute']:
+            _state['minute_buckets'].append({
+                'ts':      _state['_current_minute'] * 60,
+                'flows':   _state['_minute_flows'],
+                'attacks': _state['_minute_attacks'],
+            })
+            _state['_current_minute'] = cur_min
+            _state['_minute_flows']   = 0
+            _state['_minute_attacks'] = 0
+        _state['_minute_flows'] += 1
+        if result['is_attack']:
+            _state['_minute_attacks'] += 1
+
     return jsonify({
         'timestamp':    ts,
         'final_label':  result['final_label'],
@@ -354,6 +375,12 @@ def stats():
                 'dt_confidence': DT_THRESHOLD,
                 'ae_anomaly':    AE_THRESHOLD,
             },
+            # Include the in-progress current minute so chart updates immediately
+            'minute_buckets': list(_state['minute_buckets']) + [{
+                'ts':      _state['_current_minute'] * 60,
+                'flows':   _state['_minute_flows'],
+                'attacks': _state['_minute_attacks'],
+            }],
         })
 
 

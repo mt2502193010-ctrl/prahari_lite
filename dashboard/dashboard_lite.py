@@ -50,6 +50,7 @@ def stats():
             "class_counts": {},
             "routing_counts": {},
             "uptime_human": "N/A",
+            "minute_buckets": [],
         })
 
 

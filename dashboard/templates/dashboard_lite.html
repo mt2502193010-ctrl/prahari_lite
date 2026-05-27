@@ -54,7 +54,7 @@
 
   <!-- Section D: Live Traffic Chart -->
   <div class="chart-card">
-    <h3>Live Traffic — Attack Class Distribution</h3>
+    <h3>Live Traffic — Flows &amp; Attacks per Minute</h3>
     <canvas id="traffic-chart" height="220"></canvas>
   </div>
 </div>
@@ -222,29 +222,41 @@ const routingChart = new Chart(routingCtx, {
   }
 });
 
-// ── Traffic bar chart ────────────────────────────────────────────────────────
+// ── Traffic line chart (per-minute rolling) ───────────────────────────────────
 const trafficCtx = document.getElementById('traffic-chart').getContext('2d');
 const trafficChart = new Chart(trafficCtx, {
-  type: 'bar',
+  type: 'line',
   data: {
-    labels: ['NORMAL', 'APT', 'RECON', 'TRAFFIC_SPIKE', 'NR_MALWARE', 'ZERO_DAY'],
-    datasets: [{
-      label: 'Flow Count',
-      data: [0, 0, 0, 0, 0, 0],
-      backgroundColor: [
-        '#22c55e', '#ef4444', '#f97316', '#3b82f6', '#a78bfa', '#F59E0B'
-      ],
-      borderColor: '#1e293b',
-      borderWidth: 1,
-    }]
+    labels: [],
+    datasets: [
+      {
+        label: 'Flows',
+        data: [],
+        borderColor: '#22c55e',
+        backgroundColor: 'rgba(34,197,94,0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3,
+      },
+      {
+        label: 'Attacks',
+        data: [],
+        borderColor: '#ef4444',
+        backgroundColor: 'rgba(239,68,68,0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3,
+      }
+    ]
   },
   options: {
     responsive: true,
+    animation: false,
     plugins: {
-      legend: { display: false }
+      legend: { labels: { color: '#94a3b8', font: { size: 11 } } }
     },
     scales: {
-      x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+      x: { ticks: { color: '#94a3b8', maxRotation: 0 }, grid: { color: '#334155' } },
       y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' }, beginAtZero: true }
     }
   }
@@ -318,17 +330,17 @@ function updateStats() {
       ];
       routingChart.update();
 
-      // Traffic chart
-      var cc = data.class_counts || {};
-      trafficChart.data.datasets[0].data = [
-        cc.NORMAL || 0,
-        cc.APT || 0,
-        cc.RECON || 0,
-        cc.TRAFFIC_SPIKE || 0,
-        cc.NR_MALWARE || 0,
-        cc.ZERO_DAY || 0,
-      ];
-      trafficChart.update();
+      // Traffic chart — per-minute rolling buckets
+      var buckets = data.minute_buckets || [];
+      if (buckets.length > 0) {
+        trafficChart.data.labels = buckets.map(function(b) {
+          var d = new Date(b.ts * 1000);
+          return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+        });
+        trafficChart.data.datasets[0].data = buckets.map(function(b) { return b.flows; });
+        trafficChart.data.datasets[1].data = buckets.map(function(b) { return b.attacks; });
+        trafficChart.update();
+      }
     })
     .catch(function(e) {
       document.getElementById('status-pill').textContent = '● OFFLINE';
@@ -436,10 +448,6 @@ loadLocoResults();
 
 setInterval(updateStats,  3000);
 setInterval(updateAlerts, 3000);
-setInterval(function() {
-  updateStats();
-  trafficChart.update();
-}, 5000);
 
 // Load LOCO once (static data)
 setTimeout(loadLocoResults, 2000);
