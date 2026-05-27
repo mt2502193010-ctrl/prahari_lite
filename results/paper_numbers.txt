@@ -1,0 +1,17 @@
+DT v1 macro F1    = 0.131
+DT v2 macro F1    = 0.988
+DT v1 APT recall  = 0.004
+DT v2 APT recall  = 0.997
+DT v1 RECON recall= 0.000
+DT v2 RECON recall= 0.999
+DT v2 node count  = 767
+DT v2 depth       = 15
+AE APT detection  = 24.4% (at FPR=6.0%)
+AE TS detection   = 30.0% (at FPR=6.0%)
+AE RECON detect   = 0.0% (undetectable — lower MSE than NORMAL)
+AE isolation FPR  = 6.0%  [before purity gate — for reference only]
+System FPR        = 0.26%  [after purity gate — cite this]
+AE threshold      = 2.414035 (fixed-point: 158206)
+Speedup vs SW     = 1414x (theoretical — from FPGA latency model)
+Latency FPGA      = 600 ns (from DT FSM @ 100 MHz, depth=15 cycles)
+BRAM utilisation  = 9.0% (estimated 767-node ROM on xc7z020)
