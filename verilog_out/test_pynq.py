@@ -10,7 +10,7 @@ import numpy as np
 # AXI register offsets
 REG_CONTROL  = 0x00
 REG_STATUS   = 0x04
-REG_FEAT_BASE= 0x08   # feat[0] at 0x08, feat[14] at 0x44
+REG_FEAT_BASE= 0x08   # feat[0] at 0x08, feat[14] at 0x40 (15 regs × 4 bytes)
 REG_RESULT   = 0x48
 REG_AE_ERROR = 0x4C
 
@@ -40,15 +40,31 @@ def load_overlay(bit_path="/home/xilinx/prahari_lite/prahari_lite.bit"):
     print(f"Overlay loaded: {bit_path}")
     return ol
 
+def to_q88(raw, mean, std):
+    """
+    Normalize one feature and convert to signed Q8.8 fixed-point integer.
+    Hardware scaler removed (Fix 2) — software must pre-scale before AXI write.
+      z     = (raw - mean) / std          (z-score, same as Python model sees)
+      q     = round(z * 256)              (Q8.8: 1 integer unit = 1/256 of a z-score unit)
+    Returns unsigned 16-bit value suitable for a 32-bit AXI write (upper 16 bits zero).
+    """
+    z = (raw - mean) / std
+    q = int(round(z * 256))
+    q = max(-32768, min(32767, q))        # clamp to signed 16-bit range
+    return q & 0xFFFF                     # reinterpret as unsigned for AXI write
+
+
 def classify(ip, raw_features):
     """
     Classify one flow.
-    raw_features: list of 15 floats (unscaled, raw values)
+    raw_features: list of 15 floats (unscaled, raw physical values).
+    Software normalises each feature using SCALER_MEAN / SCALER_SCALE before
+    writing to AXI registers as Q8.8 signed fixed-point values.
     Returns: (class_name, zero_day, ae_error_float)
     """
-    # Convert to Q8.8 (scale=256), unsigned 16-bit
+    # Normalise raw → z-score → Q8.8, write to AXI feature registers
     for i, v in enumerate(raw_features):
-        q88 = int(v * 256) & 0xFFFF
+        q88 = to_q88(v, SCALER_MEAN[i], SCALER_SCALE[i])
         ip.write(REG_FEAT_BASE + i * 4, q88)
 
     # Start inference
