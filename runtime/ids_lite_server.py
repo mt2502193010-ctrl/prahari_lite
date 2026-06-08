@@ -93,7 +93,11 @@ _state = {
 }
 
 # ── FPGA bridge (global, initialised in __main__) ───────────────────────────────
-FPGA_BRIDGE = FPGABridge()
+# Board IP/credentials read from env so Docker and raw-Python modes share one config
+_BOARD_IP   = os.environ.get("FPGA_BOARD_IP",   "192.168.2.99")
+_BOARD_USER = os.environ.get("FPGA_BOARD_USER",  "xilinx")
+_BOARD_PASS = os.environ.get("FPGA_BOARD_PASS",  "xilinx")
+FPGA_BRIDGE = FPGABridge(board_ip=_BOARD_IP, user=_BOARD_USER, password=_BOARD_PASS)
 
 # ── Model globals ───────────────────────────────────────────────────────────────
 DT_MODEL      = None

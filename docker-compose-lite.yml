@@ -1,6 +1,25 @@
 version: '3.8'
 
+# PRAHARI-Lite — Docker Compose
+# Runs three services: IDS server, dashboard, traffic generator
+#
+# Usage:
+#   docker compose -f docker-compose-lite.yml up --build -d
+#   docker compose -f docker-compose-lite.yml logs -f
+#   docker compose -f docker-compose-lite.yml down
+#
+# FPGA board (Pynq-Z2) runs board_fpga_server.py separately:
+#   ssh xilinx@192.168.2.99
+#   echo xilinx | sudo -S python3 /home/xilinx/board_fpga_server.py &
+
+x-ids-env: &ids-env
+  FPGA_BOARD_IP:   "192.168.2.99"
+  FPGA_BOARD_USER: "xilinx"
+  FPGA_BOARD_PASS: "xilinx"
+  PYTHONUNBUFFERED: "1"
+
 services:
+
   prahari_lite_ids:
     build:
       context: .
@@ -12,36 +31,56 @@ services:
     volumes:
       - ./models:/app/models:ro
       - ./outputs:/app/outputs:ro
-    restart: unless-stopped
     environment:
-      PYTHONUNBUFFERED: "1"
-    networks:
-      - prahari_lite_network
+      <<: *ids-env
+      IDS_LITE_URL: "http://localhost:5001"
+    # host network lets the container reach 192.168.2.99 via the Mac's en5 interface.
+    # On macOS Docker Desktop this works because Docker routes through the host network.
+    # On Linux change to network_mode: host for direct access.
+    extra_hosts:
+      - "fpga-board:192.168.2.99"
+    restart: unless-stopped
+    command: ["python", "runtime/ids_lite_server.py"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "curl", "-sf", "http://localhost:5001/health"]
+      interval: 15s
+      timeout: 5s
       retries: 3
+      start_period: 10s
+    networks:
+      - prahari_lite_net
 
   prahari_lite_dashboard:
-    build:
-      context: .
-      dockerfile: Dockerfile.lite
     image: prahari_lite_ids:local
     container_name: prahari_lite_dashboard
     ports:
       - "5002:5002"
     depends_on:
-      - prahari_lite_ids
+      prahari_lite_ids:
+        condition: service_healthy
     environment:
+      <<: *ids-env
       IDS_LITE_URL: "http://prahari_lite_ids:5001"
-      PYTHONUNBUFFERED: "1"
     command: ["python", "dashboard/dashboard_lite.py"]
-    networks:
-      - prahari_lite_network
     restart: unless-stopped
+    networks:
+      - prahari_lite_net
+
+  prahari_lite_traffic:
+    image: prahari_lite_ids:local
+    container_name: prahari_lite_traffic
+    depends_on:
+      prahari_lite_ids:
+        condition: service_healthy
+    environment:
+      <<: *ids-env
+    command: ["python", "runtime/traffic_gen_lite.py", "--rate", "3.0",
+              "--url", "http://prahari_lite_ids:5001"]
+    restart: unless-stopped
+    networks:
+      - prahari_lite_net
 
 networks:
-  prahari_lite_network:
+  prahari_lite_net:
     driver: bridge
-    name: prahari_lite_network
+    name: prahari_lite_net

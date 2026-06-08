@@ -1,38 +1,58 @@
-# PRAHARI-Lite Dockerfile
-# Lightweight IDS with DT + Autoencoder
-# Target: Pynq-Z2 (host x86 for server, HLS for FPGA)
-# Completely isolated from PRAHARI v7 at ../docker_env/
+# PRAHARI-Lite — Production Docker Image
+# Edge IDS: DT v2 + AE v2 + FPGA bridge to Pynq-Z2
+# Isolated from PRAHARI v7 (docker_env/, port 5000)
+#
+# Build:  docker compose -f docker-compose-lite.yml build
+# Run:    docker compose -f docker-compose-lite.yml up -d
 
 FROM python:3.11-slim
 
 LABEL maintainer="PRAHARI-Lite"
-LABEL description="FPGA-native hybrid IDS: DecisionTree + Autoencoder"
+LABEL description="FPGA-native hybrid IDS: DecisionTree + Autoencoder + Pynq-Z2 bridge"
 
 WORKDIR /app
 
-# System dependencies
+# System deps: curl for healthcheck, openssh-client for FPGA SSH bridge
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    openssh-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Python dependencies
+# ── Python dependencies ──────────────────────────────────────────────────────
+# Install torch CPU-only first (avoids pulling 2 GB of CUDA packages)
+# then install the rest of requirements
 COPY requirements_lite.txt .
-RUN pip install --no-cache-dir -r requirements_lite.txt
+RUN pip install --no-cache-dir \
+        torch --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir \
+        scikit-learn \
+        numpy \
+        pandas \
+        flask \
+        gunicorn \
+        joblib \
+        requests \
+        paramiko \
+        markupsafe \
+    && rm -rf /root/.cache/pip
 
-# Copy application
+# ── Application source ───────────────────────────────────────────────────────
 COPY runtime/       runtime/
 COPY dashboard/     dashboard/
 COPY models/        models/
 COPY outputs/       outputs/
-COPY docs/          docs/
-COPY training/      training/
-COPY experiments/   experiments/
 
-# Create output dirs
-RUN mkdir -p /app/outputs /app/docs /app/models
+# ── Runtime config ───────────────────────────────────────────────────────────
+# FPGA board IP — override in docker-compose or at runtime
+ENV FPGA_BOARD_IP=192.168.2.99
+ENV FPGA_BOARD_USER=xilinx
+# FPGA_BOARD_PASS set via docker-compose environment (not baked into image)
 
-# Expose ports
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+
+# Expose IDS server and dashboard ports
 EXPOSE 5001 5002
 
-# Default command: IDS server
+# Default: IDS server (override in docker-compose for dashboard container)
 CMD ["python", "runtime/ids_lite_server.py"]
