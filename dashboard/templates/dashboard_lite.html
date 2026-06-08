@@ -17,6 +17,7 @@
   </div>
   <div class="status-items">
     <span class="pill green" id="status-pill">● ONLINE</span>
+    <span class="pill amber" id="fpga-pill" title="FPGA board status">⧖ FPGA …</span>
     <span class="status-item" id="model-info">dt_lite_v1 | ae_lite_v1</span>
     <span class="status-item">Port: 5001</span>
     <span class="status-item">Uptime: <span id="uptime">—</span></span>
@@ -442,12 +443,37 @@ function loadLocoResults() {
 }
 
 // ── Polling ──────────────────────────────────────────────────────────────────
+function updateFpgaStatus() {
+  fetch('/api/fpga_status')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var pill = document.getElementById('fpga-pill');
+      if (d.connected) {
+        var lat = d.avg_latency_us > 0 ? ' ' + Math.round(d.avg_latency_us) + 'µs' : '';
+        pill.textContent = '⬡ FPGA ONLINE' + lat;
+        pill.className   = 'pill green';
+        pill.title       = 'HW: ' + d.total_hw_inferences + ' | SW fallback: ' + d.total_sw_fallbacks;
+      } else {
+        pill.textContent = '● CPU FALLBACK';
+        pill.className   = 'pill amber';
+        pill.title       = 'Board ' + d.board_ip + ' unreachable — SW fallbacks: ' + d.total_sw_fallbacks;
+      }
+    })
+    .catch(function() {
+      var pill = document.getElementById('fpga-pill');
+      pill.textContent = '● CPU FALLBACK';
+      pill.className   = 'pill amber';
+    });
+}
+
 updateStats();
 updateAlerts();
 loadLocoResults();
+updateFpgaStatus();
 
-setInterval(updateStats,  3000);
-setInterval(updateAlerts, 3000);
+setInterval(updateStats,      3000);
+setInterval(updateAlerts,     3000);
+setInterval(updateFpgaStatus, 5000);
 
 // Load LOCO once (static data)
 setTimeout(loadLocoResults, 2000);

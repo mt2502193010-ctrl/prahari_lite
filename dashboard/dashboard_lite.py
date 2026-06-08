@@ -77,6 +77,22 @@ def health():
         })
 
 
+@app.route('/api/fpga_status')
+def fpga_status():
+    try:
+        r = req.get(f"{IDS_BASE}/fpga_status", timeout=3)
+        return jsonify(r.json())
+    except Exception as e:
+        return jsonify({
+            "connected": False,
+            "board_ip": "192.168.2.99",
+            "avg_latency_us": 0,
+            "total_hw_inferences": 0,
+            "total_sw_fallbacks": 0,
+            "error": str(e),
+        })
+
+
 @app.route('/api/loco_results')
 def loco_results():
     """Load LOCO experiment results from CSV."""

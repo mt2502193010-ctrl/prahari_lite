@@ -11,6 +11,7 @@ import json
 import threading
 import time
 import datetime
+import logging
 from pathlib import Path
 from collections import deque
 
@@ -20,6 +21,10 @@ sys.path.insert(0, str(BASE_DIR / "runtime"))
 from flask import Flask, request, jsonify
 import numpy as np
 import joblib
+
+from fpga_bridge import FPGABridge
+
+logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 
 try:
     import torch
@@ -86,6 +91,9 @@ _state = {
     '_minute_flows':    0,
     '_minute_attacks':  0,
 }
+
+# ── FPGA bridge (global, initialised in __main__) ───────────────────────────────
+FPGA_BRIDGE = FPGABridge()
 
 # ── Model globals ───────────────────────────────────────────────────────────────
 DT_MODEL      = None
@@ -261,48 +269,69 @@ def health():
 
 @app.route('/detect', methods=['POST'])
 def detect():
-    if not MODELS_LOADED:
+    # Allow inference if either FPGA is up OR software models are loaded
+    if not MODELS_LOADED and not FPGA_BRIDGE.is_connected():
         return jsonify({
-            'error': 'Models not loaded',
-            'detail': LOAD_ERROR or 'Run training scripts first',
+            'error':  'Inference unavailable',
+            'detail': 'No FPGA connection and models not loaded',
         }), 503
 
     data = request.get_json(silent=True)
     if data is None:
         return jsonify({'error': 'Invalid JSON'}), 400
 
-    # Check required features
-    missing = [f for f in FEATURES_15 if f not in data]
-    if missing:
-        return jsonify({
-            'error':   'Missing required features',
-            'missing': missing,
-            'required': FEATURES_15,
-        }), 400
-
-    # Extract features dict
+    # Accept {"features": [v0..v14]} list form OR {"feat_name": value, ...} dict form
+    raw_list = []
     features = {}
-    for f in FEATURES_15:
-        try:
-            features[f] = float(data[f])
-        except (TypeError, ValueError):
-            features[f] = 0.0
+    if 'features' in data and isinstance(data['features'], list):
+        if len(data['features']) != 15:
+            return jsonify({'error': 'features list must contain exactly 15 values'}), 400
+        for i, v in enumerate(data['features']):
+            try:
+                val = float(v)
+            except (TypeError, ValueError):
+                val = 0.0
+            raw_list.append(val)
+            features[FEATURES_15[i]] = val
+    else:
+        missing = [f for f in FEATURES_15 if f not in data]
+        if missing:
+            return jsonify({
+                'error':    'Missing required features',
+                'missing':  missing,
+                'required': FEATURES_15,
+            }), 400
+        for f in FEATURES_15:
+            try:
+                val = float(data[f])
+            except (TypeError, ValueError):
+                val = 0.0
+            features[f] = val
+            raw_list.append(val)
 
+    # ── Route to hardware or software ─────────────────────────────────────────
     try:
-        result = infer(features)
+        if FPGA_BRIDGE.is_connected():
+            result = FPGA_BRIDGE.classify(raw_list)
+        elif MODELS_LOADED:
+            result = infer(features)
+            result['source'] = 'software'
+        else:
+            return jsonify({'error': 'Inference unavailable'}), 503
     except Exception as e:
         return jsonify({'error': f'Inference failed: {e}'}), 500
 
-    # Update state
+    # ── Update state ──────────────────────────────────────────────────────────
     ts = datetime.datetime.now().isoformat()
     alert = {
-        'timestamp':    ts,
-        'final_label':  result['final_label'],
-        'dt_label':     result['dt_label'],
-        'routing':      result['routing'],
-        'dt_purity':    result['dt_purity'],
-        'ae_error':     result['ae_error'],
-        'is_attack':    result['is_attack'],
+        'timestamp':   ts,
+        'final_label': result['final_label'],
+        'dt_label':    result['dt_label'],
+        'routing':     result.get('routing', 'DT_CONFIDENT'),
+        'dt_purity':   result.get('dt_purity'),
+        'ae_error':    result.get('ae_error'),
+        'is_attack':   result['is_attack'],
+        'source':      result.get('source', 'software'),
     }
 
     with _lock:
@@ -314,13 +343,13 @@ def detect():
         label = result['final_label']
         if label in _state['class_counts']:
             _state['class_counts'][label] += 1
-        _state['routing_counts'][result['routing']] = (
-            _state['routing_counts'].get(result['routing'], 0) + 1
+        routing_key = result.get('routing', 'DT_CONFIDENT')
+        _state['routing_counts'][routing_key] = (
+            _state['routing_counts'].get(routing_key, 0) + 1
         )
         if result['is_attack']:
             _state['alert_history'].append(alert)
 
-        # Rolling per-minute bucket update
         cur_min = int(time.time() // 60)
         if cur_min != _state['_current_minute']:
             _state['minute_buckets'].append({
@@ -339,13 +368,15 @@ def detect():
         'timestamp':    ts,
         'final_label':  result['final_label'],
         'dt_label':     result['dt_label'],
-        'dt_purity':    result['dt_purity'],
-        'dt_confident': result['dt_confident'],
-        'ae_error':     result['ae_error'],
-        'ae_anomaly':   result['ae_anomaly'],
-        'routing':      result['routing'],
+        'dt_purity':    result.get('dt_purity'),
+        'dt_confident': result.get('dt_confident', True),
+        'ae_error':     result.get('ae_error'),
+        'ae_anomaly':   result.get('ae_anomaly', False),
+        'routing':      result.get('routing', 'DT_CONFIDENT'),
         'is_attack':    result['is_attack'],
         'is_zero_day':  result['is_zero_day'],
+        'source':       result.get('source', 'software'),
+        'latency_us':   result.get('latency_us'),
     })
 
 
@@ -409,6 +440,11 @@ def reset():
     return jsonify({'status': 'reset', 'message': 'Stats cleared'})
 
 
+@app.route('/fpga_status', methods=['GET'])
+def fpga_status():
+    return jsonify(FPGA_BRIDGE.status())
+
+
 def _fmt_uptime(seconds):
     h = int(seconds // 3600)
     m = int((seconds % 3600) // 60)
@@ -434,5 +470,17 @@ if __name__ == '__main__':
     else:
         print(f"\n[SERVER] WARNING: {LOAD_ERROR}")
         print("[SERVER] Server starting in degraded mode — /health returns error info")
+
+    # ── Try FPGA bridge (non-blocking — server starts regardless) ────────────
+    def _try_fpga():
+        print("[FPGA] Attempting to connect to board...")
+        ok = FPGA_BRIDGE.connect()
+        if ok:
+            print(f"[FPGA] Connected — hardware inference active")
+        else:
+            print("[FPGA] Board unreachable — using software fallback")
+
+    import threading as _th
+    _th.Thread(target=_try_fpga, daemon=True).start()
 
     app.run(host='0.0.0.0', port=5001, debug=False, threaded=True)
