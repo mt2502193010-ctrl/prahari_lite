@@ -187,20 +187,43 @@ VERIFIED_VECTORS = {
 
 ## Running the System
 
+### Current mode: raw Python (not Docker)
+Docker files exist (`Dockerfile.lite`, `docker-compose-lite.yml`) but the system
+is run directly with the venv Python for faster iteration and FPGA bridge access.
+
 ```bash
 cd ~/ids_project/prahari_lite
 
-# Start all three processes:
+# Start all three processes (raw Python — current mode):
 .venv/bin/python3 runtime/ids_lite_server.py >> /tmp/ids_server.log 2>&1 &
 .venv/bin/python3 dashboard/dashboard_lite.py >> /tmp/dashboard.log 2>&1 &
 .venv/bin/python3 runtime/traffic_gen_lite.py --rate 3.0 >> /tmp/traffic.log 2>&1 &
 
+# Check what's running:
+ps aux | grep -E 'ids_lite|dashboard_lite|traffic_gen' | grep -v grep
+
+# Stop all:
+pkill -f ids_lite_server.py; pkill -f dashboard_lite.py; pkill -f traffic_gen_lite.py
+```
+
+### Alternative: Docker (equivalent, no FPGA bridge changes needed)
+```bash
+cd ~/ids_project/prahari_lite
+docker compose -f docker-compose-lite.yml up --build -d
+docker compose -f docker-compose-lite.yml logs -f
+```
+
+### Board server (run ON the board as root, port 5003):
+```bash
+# Already deployed to /home/xilinx/board_fpga_server.py
+# Start: echo xilinx | sudo -S python3 /home/xilinx/board_fpga_server.py &
+# Check: curl http://192.168.2.99:5003/health
+```
+
+```bash
 # Dashboard: http://localhost:5002
 # IDS API:   http://localhost:5001
 # FPGA status: curl http://localhost:5001/fpga_status
-
-# Board server (run ON the board as root):
-# sudo python3 /home/xilinx/board_fpga_server.py   (port 5003)
 
 # Test inference:
 curl -X POST http://localhost:5001/detect \
